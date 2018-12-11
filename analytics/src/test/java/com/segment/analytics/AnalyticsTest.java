@@ -166,6 +166,8 @@ public class AnalyticsTest {
             new CountDownLatch(0),
             false,
             false,
+            "1.0",
+            99,
             optOut,
             Crypto.none(),
             Collections.<Middleware>emptyList());
@@ -730,7 +732,7 @@ public class AnalyticsTest {
   }
 
   @Test
-  public void trackApplicationLifecycleEventsInstalled() throws NameNotFoundException {
+  public void whenVersionNotProvidedUsesPackageManagerVersion() throws NameNotFoundException {
     Analytics.INSTANCES.clear();
 
     PackageInfo packageInfo = new PackageInfo();
@@ -741,6 +743,86 @@ public class AnalyticsTest {
     when(packageManager.getPackageInfo("com.foo", 0)).thenReturn(packageInfo);
     when(application.getPackageName()).thenReturn("com.foo");
     when(application.getPackageManager()).thenReturn(packageManager);
+
+    final AtomicReference<Application.ActivityLifecycleCallbacks> callback =
+            new AtomicReference<>();
+    doNothing()
+            .when(application)
+            .registerActivityLifecycleCallbacks(
+                    argThat(
+                            new NoDescriptionMatcher<Application.ActivityLifecycleCallbacks>() {
+                              @Override
+                              protected boolean matchesSafely(Application.ActivityLifecycleCallbacks item) {
+                                callback.set(item);
+                                return true;
+                              }
+                            }));
+
+    analytics =
+            new Analytics(
+                    application,
+                    networkExecutor,
+                    stats,
+                    traitsCache,
+                    analyticsContext,
+                    defaultOptions,
+                    Logger.with(NONE),
+                    "qaz",
+                    Collections.singletonList(factory),
+                    client,
+                    Cartographer.INSTANCE,
+                    projectSettingsCache,
+                    "foo",
+                    DEFAULT_FLUSH_QUEUE_SIZE,
+                    DEFAULT_FLUSH_INTERVAL,
+                    analyticsExecutor,
+                    true,
+                    new CountDownLatch(0),
+                    false,
+                    false,
+                    null,
+                    null,
+                    optOut,
+                    Crypto.none(),
+                    Collections.<Middleware>emptyList());
+
+    callback.get().onActivityCreated(null, null);
+
+    verify(integration)
+            .track(
+                    argThat(
+                            new NoDescriptionMatcher<TrackPayload>() {
+                              @Override
+                              protected boolean matchesSafely(TrackPayload payload) {
+                                return payload.event().equals("Application Installed")
+                                        && //
+                                        payload.properties().getString("version").equals("1.0.0")
+                                        && //
+                                        payload.properties().getInt("build", -1) == 100;
+                              }
+                            }));
+    verify(integration)
+            .track(
+                    argThat(
+                            new NoDescriptionMatcher<TrackPayload>() {
+                              @Override
+                              protected boolean matchesSafely(TrackPayload payload) {
+                                return payload.event().equals("Application Opened")
+                                        && //
+                                        payload.properties().getString("version").equals("1.0.0")
+                                        && //
+                                        payload.properties().getInt("build", -1) == 100;
+                              }
+                            }));
+
+    callback.get().onActivityCreated(null, null);
+    verify(integration, times(2)).onActivityCreated(null, null);
+    verifyNoMoreInteractions(integration);
+  }
+
+  @Test
+  public void trackApplicationLifecycleEventsInstalled() throws NameNotFoundException {
+    Analytics.INSTANCES.clear();
 
     final AtomicReference<Application.ActivityLifecycleCallbacks> callback =
         new AtomicReference<>();
@@ -778,6 +860,8 @@ public class AnalyticsTest {
             new CountDownLatch(0),
             false,
             false,
+            "1.0",
+            99,
             optOut,
             Crypto.none(),
             Collections.<Middleware>emptyList());
@@ -792,9 +876,9 @@ public class AnalyticsTest {
                   protected boolean matchesSafely(TrackPayload payload) {
                     return payload.event().equals("Application Installed")
                         && //
-                        payload.properties().getString("version").equals("1.0.0")
+                        payload.properties().getString("version").equals("1.0")
                         && //
-                        payload.properties().getInt("build", -1) == 100;
+                        payload.properties().getInt("build", -1) == 99;
                   }
                 }));
     verify(integration)
@@ -805,9 +889,9 @@ public class AnalyticsTest {
                   protected boolean matchesSafely(TrackPayload payload) {
                     return payload.event().equals("Application Opened")
                         && //
-                        payload.properties().getString("version").equals("1.0.0")
+                        payload.properties().getString("version").equals("1.0")
                         && //
-                        payload.properties().getInt("build", -1) == 100;
+                        payload.properties().getInt("build", -1) == 99;
                   }
                 }));
 
@@ -874,6 +958,8 @@ public class AnalyticsTest {
             new CountDownLatch(0),
             false,
             false,
+            "1.0",
+            99,
             optOut,
             Crypto.none(),
             Collections.<Middleware>emptyList());
@@ -892,9 +978,9 @@ public class AnalyticsTest {
                         && //
                         payload.properties().getInt("previous_build", -1) == 100
                         && //
-                        payload.properties().getString("version").equals("1.0.1")
+                        payload.properties().getString("version").equals("1.0")
                         && //
-                        payload.properties().getInt("build", -1) == 101;
+                        payload.properties().getInt("build", -1) == 99;
                   }
                 }));
     verify(integration)
@@ -905,9 +991,9 @@ public class AnalyticsTest {
                   protected boolean matchesSafely(TrackPayload payload) {
                     return payload.event().equals("Application Opened")
                         && //
-                        payload.properties().getString("version").equals("1.0.1")
+                        payload.properties().getString("version").equals("1.0")
                         && //
-                        payload.properties().getInt("build", -1) == 101;
+                        payload.properties().getInt("build", -1) == 99;
                   }
                 }));
   }
@@ -952,6 +1038,8 @@ public class AnalyticsTest {
             new CountDownLatch(0),
             true,
             false,
+            "1.0",
+            99,
             optOut,
             Crypto.none(),
             Collections.<Middleware>emptyList());
@@ -1019,6 +1107,8 @@ public class AnalyticsTest {
             new CountDownLatch(0),
             false,
             false,
+            "0.1",
+            99,
             optOut,
             Crypto.none(),
             Collections.<Middleware>emptyList());
@@ -1103,6 +1193,8 @@ public class AnalyticsTest {
             new CountDownLatch(0),
             false,
             false,
+            "1.0",
+            99,
             optOut,
             Crypto.none(),
             Collections.<Middleware>emptyList());

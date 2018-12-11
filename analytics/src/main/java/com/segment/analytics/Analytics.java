@@ -140,6 +140,8 @@ public class Analytics {
   private final CountDownLatch advertisingIdLatch;
   private final ExecutorService analyticsExecutor;
   private final BooleanPreference optOut;
+  private final String versionName;
+  private final int versionCode;
 
   final Map<String, Boolean> bundledIntegrations = new ConcurrentHashMap<>();
   private List<Integration.Factory> factories;
@@ -222,6 +224,8 @@ public class Analytics {
       CountDownLatch advertisingIdLatch,
       final boolean shouldRecordScreenViews,
       final boolean trackAttributionInformation,
+      String versionName,
+      Integer versionCode,
       BooleanPreference optOut,
       Crypto crypto,
       @NonNull List<Middleware> middlewares) {
@@ -245,6 +249,19 @@ public class Analytics {
     this.analyticsExecutor = analyticsExecutor;
     this.crypto = crypto;
     this.middlewares = middlewares;
+
+    // Set default version name and version code
+    if (versionName == null) {
+      this.versionName = getPackageInfo(application).versionName;
+    } else {
+      this.versionName = versionName;
+    }
+
+    if (versionCode == null) {
+      this.versionCode = getPackageInfo(application).versionCode;
+    } else {
+      this.versionCode = versionCode;
+    }
 
     namespaceSharedPreferences();
 
@@ -378,11 +395,6 @@ public class Analytics {
 
   @Private
   void trackApplicationLifecycleEvents() {
-    // Get the current version.
-    PackageInfo packageInfo = getPackageInfo(application);
-    String currentVersion = packageInfo.versionName;
-    int currentBuild = packageInfo.versionCode;
-
     // Get the previous recorded version.
     SharedPreferences sharedPreferences = getSegmentSharedPreferences(application, tag);
     String previousVersion = sharedPreferences.getString(VERSION_KEY, null);
@@ -393,14 +405,14 @@ public class Analytics {
       track(
           "Application Installed",
           new Properties() //
-              .putValue(VERSION_KEY, currentVersion)
-              .putValue(BUILD_KEY, currentBuild));
-    } else if (currentBuild != previousBuild) {
+              .putValue(VERSION_KEY, this.versionName)
+              .putValue(BUILD_KEY, this.versionCode));
+    } else if (this.versionCode != previousBuild) {
       track(
           "Application Updated",
           new Properties() //
-              .putValue(VERSION_KEY, currentVersion)
-              .putValue(BUILD_KEY, currentBuild)
+              .putValue(VERSION_KEY, this.versionName)
+              .putValue(BUILD_KEY, this.versionCode)
               .putValue("previous_" + VERSION_KEY, previousVersion)
               .putValue("previous_" + BUILD_KEY, previousBuild));
     }
@@ -409,13 +421,13 @@ public class Analytics {
     track(
         "Application Opened",
         new Properties() //
-            .putValue("version", currentVersion) //
-            .putValue("build", currentBuild));
+            .putValue("version", this.versionName) //
+            .putValue("build", this.versionCode));
 
     // Update the recorded version.
     SharedPreferences.Editor editor = sharedPreferences.edit();
-    editor.putString(VERSION_KEY, currentVersion);
-    editor.putInt(BUILD_KEY, currentBuild);
+    editor.putString(VERSION_KEY, this.versionName);
+    editor.putInt(BUILD_KEY, this.versionCode);
     editor.apply();
   }
 
@@ -1089,6 +1101,8 @@ public class Analytics {
     private boolean recordScreenViews = false;
     private boolean trackAttributionInformation = false;
     private Crypto crypto;
+    private String versionName;
+    private Integer versionCode;
 
     /** Start building a new {@link Analytics} instance. */
     public Builder(Context context, String writeKey) {
@@ -1290,6 +1304,26 @@ public class Analytics {
     }
 
     /**
+     * Override the version name at runtime. This is useful for react native applications using codepush,
+     * who want to report the correct version when non-native changes are deployed over the air.
+     *
+     * @param versionName overridden version name to use
+     */
+    public Builder versionName(String versionName) {
+      assertNotNull(versionName, "versionName");
+      this.versionName = versionName;
+
+      return this;
+    }
+
+    /** Override version code, see { @link Builder#versionName } */
+    public Builder versionCode(int versionCode) {
+      this.versionCode = versionCode;
+
+      return this;
+    }
+
+    /**
      * The executor on which payloads are dispatched asynchronously. This is not exposed publicly.
      */
     Builder executor(ExecutorService executor) {
@@ -1352,6 +1386,13 @@ public class Analytics {
       CountDownLatch advertisingIdLatch = new CountDownLatch(1);
       analyticsContext.attachAdvertisingId(application, advertisingIdLatch, logger);
 
+      if (versionName != null) {
+        analyticsContext.putVersionName(versionName);
+      }
+      if (versionCode != null) {
+        analyticsContext.putVersionCode(versionCode);
+      }
+
       List<Integration.Factory> factories = new ArrayList<>(1 + this.factories.size());
       factories.add(SegmentIntegration.FACTORY);
       factories.addAll(this.factories);
@@ -1384,6 +1425,8 @@ public class Analytics {
           advertisingIdLatch,
           recordScreenViews,
           trackAttributionInformation,
+          versionName,
+          versionCode,
           optOut,
           crypto,
           middlewares);
