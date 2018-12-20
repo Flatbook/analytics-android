@@ -102,6 +102,24 @@ public class AnalyticsContextTest {
   }
 
   @Test
+  public void putVersionNameOverridesDefault() {
+    context = AnalyticsContext.create(RuntimeEnvironment.application, traits, false)
+            .putVersionName("10.0");
+
+    assertThat(context.getValueMap("app")) //
+            .containsEntry("version", "10.0");
+  }
+
+  @Test
+  public void putVersionCodeOverridesDefault() {
+    context = AnalyticsContext.create(RuntimeEnvironment.application, traits, false)
+            .putVersionCode(10);
+
+    assertThat(context.getValueMap("app")) //
+            .containsEntry("build", "10");
+  }
+
+  @Test
   public void createWithoutDeviceIdCollection() {
     context = AnalyticsContext.create(RuntimeEnvironment.application, traits, false);
 

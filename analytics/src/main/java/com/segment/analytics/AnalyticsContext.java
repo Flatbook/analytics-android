@@ -215,6 +215,16 @@ public class AnalyticsContext extends ValueMap {
     }
   }
 
+  public AnalyticsContext putVersionName(String version) {
+    ValueMap app = getValueMap(APP_KEY).putValue(APP_VERSION_KEY, version);
+    return putValue(APP_KEY, app);
+  }
+
+  public AnalyticsContext putVersionCode(int versionCode) {
+    ValueMap app = getValueMap(APP_KEY).putValue(APP_BUILD_KEY, String.valueOf(versionCode));
+    return putValue(APP_KEY, app);
+  }
+
   /** Set information about the campaign that resulted in the API call. */
   public AnalyticsContext putCampaign(Campaign campaign) {
     return putValue(CAMPAIGN_KEY, campaign);
